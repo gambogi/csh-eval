@@ -59,13 +59,13 @@ module CSH.Eval.Model (
   , CacheM
   , Cacheable
   , CacheError(..)
-  , runCacheable
   , execCacheable
   ) where
 
 import Control.Concurrent.MVar
 
 import Control.Monad.Trans.Either
+import Control.Monad.Trans.Reader
 import Control.Monad.IO.Class
 
 import Data.Maybe
@@ -287,6 +287,8 @@ data Evaluation = Evaluation {
     evaluationID           :: Word64
     -- | Evaluation comments.
   , evaluationComments     :: T.Text
+    -- | Start date of this evaluation.
+  , evaluationStart        :: UTCTime
     -- | Due date for this evaluation.
   , evaluationDeadline     :: UTCTime
     -- | Whether or not the evaluation result is publicly viewable.
@@ -872,7 +874,7 @@ type CacheM a = EitherT CacheError IO a
 
 -- | Exterior transformer for cache operations. Cache API caller-facing
 --   functions /must/ return into this exterior transformer.
-type Cacheable a = Cache -> CacheM a
+type Cacheable a = ReaderT Cache (EitherT CacheError IO) a
 
 -- | Cache error.
 data CacheError = HasqlError (SessionError Postgres)
@@ -881,16 +883,9 @@ data CacheError = HasqlError (SessionError Postgres)
                 | Constraint  String
                 deriving (Show)
 
--- | Enables embedding the interior cache transformer within another
---   transformer. This is only OK to use if you're embedding something
---   'Cacheable' in a different exterior transformer. I'm not sure how to
---   enforce that at the type level. You probably shouldn't use this.
-runCacheable :: Cache -> Cacheable a -> CacheM a
-runCacheable c m = m c
-
 -- | Hoist 'Cacheable' into an IO capable monad.
 execCacheable :: MonadIO m
               => Cache                   -- ^ Cache instance to execute with
               -> Cacheable a             -- ^ Cache hitting function
               -> m (Either CacheError a) -- ^ Cache error or the function result
-execCacheable c m = liftIO $ runEitherT (m c)
+execCacheable c m = liftIO $ runEitherT $ runReaderT m c
