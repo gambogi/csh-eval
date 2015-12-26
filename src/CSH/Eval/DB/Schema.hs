@@ -452,6 +452,7 @@ evaluation = mapM_ H.unitEx
        ( "id"         bigserial  primary key
        , "member_id"  bigint     not null
        , "comments"   varchar    default null
+       , "starttime"  timestamp  not null
        , "deadline"   timestamp  not null
        , "available"  boolean    default false
        , "status"     status_t   not null default 'pending'

@@ -499,10 +499,11 @@ mkProjectP = [H.stmt|insert into "project" ("title", "description", "submitted",
 
 -- | Instantiate an evaluation.
 mkEvaluationP :: Word64  -- ^ Member ID
+              -> UTCTime -- ^ Evaluation start time
               -> UTCTime -- ^ Evaluation deadline
               -> T.Text  -- ^ Evaluation type
               -> H.Stmt HP.Postgres
-mkEvaluationP = [H.stmt|insert into "evaluation" ("member_id", "deadline", "eval_type") values (?, ?, ?) returning "id"|]
+mkEvaluationP = [H.stmt|insert into "evaluation" ("member_id", "start", "deadline", "eval_type") values (?, ?, ?, ?) returning "id"|]
 
 -- *** Conditional
 

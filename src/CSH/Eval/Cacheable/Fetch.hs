@@ -646,11 +646,12 @@ projectFromRow (i, t, d, s, p, c, pt, co, st) = Project
     (evaluationStatusFromVal st)
     (getProjectProjectParticipants i)
 
-evaluationFromRow :: (Word64, Word64, T.Text, UTCTime, Bool, T.Text, T.Text) -> Evaluation
-evaluationFromRow (i, m, c, t, a, s, ty) = Evaluation
+evaluationFromRow :: (Word64, Word64, T.Text, UTCTime, UTCTime, Bool, T.Text, T.Text) -> Evaluation
+evaluationFromRow (i, m, c, t1, t2, a, s, ty) = Evaluation
     i
     c
-    t
+    t1
+    t2
     a
     (evaluationStatusFromVal s)
     (evaluationTypeFromVal ty)

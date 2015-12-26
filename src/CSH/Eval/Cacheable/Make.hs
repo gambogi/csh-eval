@@ -175,14 +175,16 @@ mkProject t d st pc pt c = do
     singletonGhost projectIDCache pid p c
 
 mkEvaluation :: Word64         -- ^ Member ID.
+             -> UTCTime        -- ^ Evaluation starttime.
              -> UTCTime        -- ^ Evaluation deadline.
              -> EvaluationType -- ^ Evaluation type.
              -> Cacheable ()
-mkEvaluation mid t et c = do
+mkEvaluation mid t1 t2 et c = do
     eid <- liftInsertSingleQ (mkEvaluationP mid t (evaluationTypeToVal et)) c
     let e = Evaluation eid
                        T.empty
-                       t
+                       t1
+                       t2
                        False
                        Pending
                        et
