@@ -42,6 +42,7 @@ import Control.Concurrent
 import Control.Exception
 
 import Control.Monad.Trans.Either
+import Control.Monad.Trans.Reader
 
 import Control.Monad.IO.Class (liftIO)
 
@@ -126,7 +127,7 @@ releaseCache = releasePool . pool
 
 -- | Atomically read a cache segment.
 hitSegment :: (Cache -> MVar s) -- ^ Cache segment accessor
-           -> Cacheable s
+           -> (Cache -> EitherT CacheError IO s)
 hitSegment = ((liftIO . readMVar) .)
 
 -- | Atomically read a segment record, passing control to interior transformer
@@ -151,7 +152,7 @@ liftMaybeQ :: CxRow Postgres t => Stmt Postgres
            --   zero or one record(s).
            -> (t -> r)
            -- ^ The error to return if the statement provides no results.
-           -> Cacheable r
+           -> (Cache -> EitherT CacheError IO r)
            -- ^ Function from the record tuple to the thing you actually
            --   want.
 liftMaybeQ s dbe fr c = do
@@ -160,12 +161,17 @@ liftMaybeQ s dbe fr c = do
               (Right Nothing)  -> left dbe
               (Right (Just v)) -> right $ fr v
 
+-- runEitherT :: IO (Either CacheError a)
+-- (new) runReaderT :: Cache -> EitherT CacheError IO a
+-- (new) type Cacheable a = ReaderT Cache (EitherT CacheError IO) a
+-- (old) type Cacheable a = Cache -> EitherT CacheError IO a
+
 -- | Lift the execution of a SQL query into the 'Cacheable' monad. The query may
 --   return a nondeterministic number of results.
 liftListQ :: CxRow Postgres t
              => Stmt Postgres
              -> (t -> r)
-             -> Cacheable [r]
+             -> (Cache -> EitherT CacheError IO [r])
 liftListQ s fr c = do
     r <- session (pool c) (tx defTxMode (listEx s))
     case r of (Left e)   -> left $ HasqlError e
@@ -174,13 +180,13 @@ liftListQ s fr c = do
 -- | Fix this to provide better constraint errors.
 liftInsertSingleQ :: CxRow Postgres (Identity t)
                   => Stmt Postgres
-                  -> Cacheable t
+                  -> (Cache -> EitherT CacheError IO t)
 liftInsertSingleQ s c = do
     r <- session (pool c) (tx defTxMode (singleEx s))
     case r of (Left e)  -> left $ HasqlError e
               (Right t) -> right (runIdentity t)
 
-liftUnitQ :: Stmt Postgres -> Cacheable ()
+liftUnitQ :: Stmt Postgres -> (Cache -> EitherT CacheError IO ())
 liftUnitQ s c = do
     r <- session (pool c) (tx defTxMode (unitEx s))
     case r of (Left e)   -> left $ HasqlError e
@@ -202,7 +208,7 @@ noSuchThing o n t = Nonexistent $ o ++ " with " ++ n ++ " " ++ (show t) ++ " doe
 
 -- | Clear a cache of all it's records. This ain't no LRU. There's probably a
 --   better way to do this. Fix this to be exception safe again.
-reaper :: Cacheable ()
+reaper :: Cache -> EitherT CacheError IO ()
 reaper c = liftIO reapAll
     where reap = (flip swapMVar) M.empty
           reapAll = (reap $ memberIDCache c)
@@ -254,7 +260,7 @@ reaper c = liftIO reapAll
 singletonGhost :: (Cache -> IDCache a)
                -> Word64
                -> a
-               -> Cacheable ()
+               -> (Cache -> EitherT CacheError IO ())
 singletonGhost a k v c = liftIO $ forkFinally insrt1 (either (const $ putStrLn "singletonGhost died!") (const $ return ())) >> return ()
     where m1  = a c
           insrt1 = do
@@ -266,7 +272,7 @@ singletonGhost a k v c = liftIO $ forkFinally insrt1 (either (const $ putStrLn "
 appendGhost :: (Cache -> IDCache [a])
             -> Word64
             -> a
-            -> Cacheable ()
+            -> (Cache -> EitherT CacheError IO ())
 appendGhost a k v c = liftIO $ forkFinally insrt1 (either (const $ putStrLn "appendGhost died!") (const $ return ())) >> return ()
     where m1 = a c
           insrt1 = do
@@ -280,13 +286,13 @@ appendGhost a k v c = liftIO $ forkFinally insrt1 (either (const $ putStrLn "app
 sneakyGhostM :: (Cache -> IDCache a)
              -> Word64
              -> CacheM a
-             -> Cacheable a
+             -> (Cache -> EitherT CacheError IO a)
 sneakyGhostM a k vM c = vM >>= (\v -> singletonGhost a k v c >> return v)
 
 -- | Create a ghost that replays the effects of an action in the 'Cacheable'
 --   monad immediately before returning control to the exterior transformer.
 sneakyGhostC :: (Cache -> IDCache a)
              -> Word64
-             -> Cacheable a
-             -> Cacheable a
-sneakyGhostC a k vM c = vM c >>= (\v -> singletonGhost a k v c >> return v)
+             -> (a -> Cache -> Word64)
+             -> (a -> Cache -> Word64)
+sneakyGhostC a k vM c = vM c >>= (\v -> singletonGhost a v c >> return v)
