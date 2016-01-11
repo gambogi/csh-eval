@@ -85,14 +85,17 @@ h2 > a:hover {
     margin-left: 15px
     margin-bottom: 0px;
 }
-#profile-nav li:first-child > a {
-  border-top-left-radius: 0px !important;
-  border-left-width: 0px !important;
-}
 
-#profile-nav li:last-child > a {
-  border-top-right-radius: 0px;
-  border-right-width: 0px;
+@media screen and (min-width: 768px) {
+  #profile-nav li:first-child > a {
+    border-top-left-radius: 0px;
+    border-left-width: 0px;
+  }
+
+  #profile-nav li:last-child > a {
+    border-top-right-radius: 0px;
+    border-right-width: 0px;
+  }
 }
 
 .panel-inner-padding {
