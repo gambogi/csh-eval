@@ -48,14 +48,17 @@ charFor False = "❌"
 -- | The handler for a single member's page
 getMemberR :: String -> Handler Html
 getMemberR username = do
+           let attendance = [("Evals", "Committee", "10/13/2015")
+                            ,("Financial", "Committee", "10/13/2015")]
            y <- getYesod
            let cache = getCache y
            let logger = getFrontendLogger y
            eitherUsr <- execCacheable cache (getMemberUsername (T.pack username))
-           let attendance = [("Evals", "Committee", "10/13/2015"), ("Financial", "Committee", "10/13/2015")]
-           case eitherUsr of
-            (Left _) -> sendResponseStatus internalServerError500 ("Could not find " ++ username)
-            (Right usr) -> defaultLayout $(whamletFile "frontend/templates/index.hamlet")
+           eusr <- execCacheable cache (getMemberUsername (T.pack username))
+           let usr = either undefined id eusr
+           eeboards <- execCacheable cache (memberEvaluations usr)
+           let eboards = either undefined id eeboards
+           defaultLayout $(whamletFile "frontend/templates/index.hamlet")
 
 widgetEval :: Evaluation -> Widget
 widgetEval eval = do

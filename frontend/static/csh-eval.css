@@ -85,6 +85,15 @@ h2 > a:hover {
     margin-left: 15px
     margin-bottom: 0px;
 }
+#profile-nav li:first-child > a {
+  border-top-left-radius: 0px !important;
+  border-left-width: 0px !important;
+}
+
+#profile-nav li:last-child > a {
+  border-top-right-radius: 0px;
+  border-right-width: 0px;
+}
 
 .panel-inner-padding {
     padding-left: 10px;
@@ -95,6 +104,10 @@ h2 > a:hover {
 
 .bottom-padded {
     padding-bottom: 10px;
+}
+
+.bottom-padded-30 {
+    padding-bottom: 30px;
 }
 
 .no-float {
